@@ -31,11 +31,28 @@ def get_data() -> pd.DataFrame:
     data_processed['Ema26'] = ema_vector(closed_prices, 26)
     data_processed['Macd'] = list(np.array(data_processed['Ema12']) - np.array(data_processed['Ema26']))
     data_processed['Signal'] = ema_vector(list(data_processed['Macd']), 9)
-    data_processed['Cross'] = data['Signal'] == data['Macd']
-
+    data_processed['Intersect'] = data_processed['Macd'] > data_processed['Signal']
+    data_processed['Intersect'] = data_processed['Intersect'].diff()
     trim_excess(data_processed)
 
     return data_processed
+
+
+def plot_macd() -> None:
+    data = get_data()
+
+    plt.figure(figsize=(15, 5))
+    plt.plot(data['Date'], data['Macd'], color='red')
+    plt.plot(data['Date'], data['Signal'], color='blue')
+    intersect = data[data['Intersect'] != 0]
+    plt.scatter(intersect['Date'], intersect['Signal'], marker='s')
+
+    plt.title('Wskaznik MACD dla akcji Tesli w latach 2020-2024')
+    plt.xlabel('Data')
+    plt.ylabel('Macd')
+    plt.legend(['MACD', 'Signal'])
+
+    plt.show()
 
 
 def trim_excess(data: pd.DataFrame) -> None:
@@ -45,11 +62,7 @@ def trim_excess(data: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    data = get_data()
-    plt.figure(figsize=(30, 5))
-    plt.plot(data['Date'], data['Macd'], color='red')
-    plt.plot(data['Date'], data['Signal'], color='blue')
-    plt.savefig('filename.png', dpi=600)
+    plot_macd()
 
 
 if __name__ == '__main__':
