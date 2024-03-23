@@ -20,6 +20,40 @@ def ema_vector(data: list[float], periods: int) -> list[float]:
     return ema_vec
 
 
+def buy_stock(money: int, stock_value: int) -> [int, int]:
+    stocks_bought = 0
+    while money > stock_value:
+        money -= stock_value
+        stocks_bought += 1
+    return [stocks_bought, money]
+
+
+def sell_stock(stock_owned: int, stock_value: int) -> int:
+    money_earned = 0
+    while stock_owned > 0:
+        stock_owned -= 1
+        money_earned += stock_value
+    return money_earned
+
+
+def simulate(crosses: pd.DataFrame) -> list[float]:
+    money_list = []
+    money = 1000
+    stock = 0
+    for index, cross in crosses[::-1].iterrows():
+        if cross['MacdSignalDiff'] < 0:
+            stock, money = buy_stock(money, cross['Stock'])
+        else:
+            if stock > 0:
+                money += sell_stock(stock, cross['Stock'])
+            money_list.append(money)
+            stock = 0
+
+    money_list.reverse()
+
+    return money_list
+
+
 def get_data() -> pd.DataFrame:
     data = pd.read_csv('data/TeslaStock.csv')
     closed_prices = pd.to_numeric(data['Close']).to_list()
@@ -27,32 +61,18 @@ def get_data() -> pd.DataFrame:
 
     data_processed = pd.DataFrame()
     data_processed['Date'] = date
+    data_processed['Stock'] = closed_prices
     data_processed['Ema12'] = ema_vector(closed_prices, 12)
     data_processed['Ema26'] = ema_vector(closed_prices, 26)
     data_processed['Macd'] = list(np.array(data_processed['Ema12']) - np.array(data_processed['Ema26']))
     data_processed['Signal'] = ema_vector(list(data_processed['Macd']), 9)
-    data_processed['Intersect'] = data_processed['Macd'] > data_processed['Signal']
-    data_processed['Intersect'] = data_processed['Intersect'].diff()
+    data_processed['MacdSignalDiff'] = data_processed['Macd'] - data_processed['Signal']
+    data_processed['DidCross'] = data_processed['Macd'] < data_processed['Signal']
+    data_processed['MacdSignalDiff'] = data_processed['MacdSignalDiff']
+    data_processed['DidCross'] = data_processed['DidCross'].diff()
     trim_excess(data_processed)
 
     return data_processed
-
-
-def plot_macd() -> None:
-    data = get_data()
-
-    plt.figure(figsize=(15, 5))
-    plt.plot(data['Date'], data['Macd'], color='red')
-    plt.plot(data['Date'], data['Signal'], color='blue')
-    intersect = data[data['Intersect'] != 0]
-    plt.scatter(intersect['Date'], intersect['Signal'], marker='s')
-
-    plt.title('Wskaznik MACD dla akcji Tesli w latach 2020-2024')
-    plt.xlabel('Data')
-    plt.ylabel('Macd')
-    plt.legend(['MACD', 'Signal'])
-
-    plt.show()
 
 
 def trim_excess(data: pd.DataFrame) -> None:
@@ -62,7 +82,7 @@ def trim_excess(data: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    plot_macd()
+    pass
 
 
 if __name__ == '__main__':
